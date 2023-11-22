@@ -1,0 +1,91 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Parámetros iniciales
+stock_inicial = 1000
+umbral_pedido = 400 # Nivel de stock para realizar pedido
+cantidad_pedido = 800  # Cantidad de llantas a pedir
+dias_simulacion = 100  # Número de días para la simulación
+
+# Distribuciones
+# Demanda de Clientes (55, 30, 70, 90 llantas con probabilidades 20%, 35%, 20%, 25%)
+demandas = [55, 30, 70, 90]
+prob_demandas = [0.20, 0.35, 0.20, 0.25]
+
+# Tiempo de Entrega del Proveedor (1 a 8 días con probabilidades dadas)
+tiempos_entrega = [1, 2, 3, 4, 5, 6, 7, 8]
+prob_tiempos = [0.05, 0.15, 0.20, 0.10, 0.05, 0.15, 0.10, 0.20]
+
+# Simulación
+inventario = stock_inicial
+historial_inventario = []
+historial_pedidos = []
+historial_tabla = []
+pedidos_en_camino = []
+demandas_diarias = []
+
+for dia in range(dias_simulacion):
+    # Llegada de pedidos
+    if pedidos_en_camino and pedidos_en_camino[0][1] == dia:
+        inventario += pedidos_en_camino[0][0]
+        pedidos_en_camino.pop(0)
+
+    # Demanda diaria
+    demanda_dia = np.random.choice(demandas, p=prob_demandas)
+    demandas_diarias.append(demanda_dia)
+    unidades_vendidas = min(demanda_dia, inventario)
+    inventario -= unidades_vendidas
+
+    # Verificar si es necesario hacer un pedido
+    if inventario < umbral_pedido and not pedidos_en_camino:
+        tiempo_entrega = np.random.choice(tiempos_entrega, p=prob_tiempos)
+        dia_llegada = dia + tiempo_entrega
+        pedidos_en_camino.append((cantidad_pedido, dia_llegada))
+        historial_pedidos.append(dia)
+
+    # Registro del inventario y otros detalles en la tabla
+    historial_tabla.append([dia, inventario, unidades_vendidas, bool(pedidos_en_camino), tiempo_entrega if pedidos_en_camino else None])
+
+    # Registro del inventario para el gráfico
+    historial_inventario.append(inventario)
+
+# Imprimiendo la tabla
+print("\nTabla de Simulación:")
+print("{:<15} {:<15} {:<20} {:<20} {:<20}".format("Día", "Inventario", "Unidades Pedidas", "Pedido Pendiente", "Tiempo de Entrega"))
+for fila in historial_tabla:
+    tiempo_entrega_str = str(fila[4]) if fila[4] is not None else "N/A"
+    print("{:<15} {:<15} {:<20} {:<20} {:<20}".format(fila[0], fila[1], fila[2], "Sí" if fila[3] else "No", tiempo_entrega_str))
+
+# Visualización
+plt.figure(figsize=(20, 5))
+
+# Gráfico de Inventario a través de los días
+plt.subplot(1, 4, 1)
+plt.plot(historial_inventario, marker='o')
+plt.title("Inventario a través de los días")
+plt.xlabel("Día")
+plt.ylabel("Inventario")
+
+# Gráfico de Días de Pedido de Inventario
+plt.subplot(1, 4, 2)
+plt.scatter(historial_pedidos, [umbral_pedido] * len(historial_pedidos), color='red')
+plt.title("Días de Pedido de Inventario")
+plt.xlabel("Día")
+plt.ylabel("Nivel de Inventario al Pedido")
+
+# Gráfico de Unidades Vendidas por Día
+plt.subplot(1, 4, 3)
+plt.bar(range(dias_simulacion), [fila[2] for fila in historial_tabla])
+plt.title("Unidades Vendidas por Día")
+plt.xlabel("Día")
+plt.ylabel("Unidades Vendidas")
+
+# Gráfico de Ventas Perdidas por Día
+plt.subplot(1, 4, 4)
+plt.bar(range(dias_simulacion), [max(demanda - fila[2], 0) for fila, demanda in zip(historial_tabla, demandas_diarias)])
+plt.title("Ventas Perdidas por Día")
+plt.xlabel("Día")
+plt.ylabel("Ventas Perdidas")
+
+plt.tight_layout()
+plt.show()
